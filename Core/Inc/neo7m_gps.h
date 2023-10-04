@@ -38,10 +38,18 @@
 #define GSV_CHECKSUM_B 0x0B
 #define MASK 0xFF
 
-uint8_t GPS_Init(USART_TypeDef *UARTx);
-void GPS_Config(USART_TypeDef *UARTx,, uint16_t measurement_rate);
-void GPS_Transmit(USART_TypeDef *UARTx, char *message);
-void GPS_Receive(USART_TypeDef *UARTx, char *new_data);
-void Calc_checksum(uint16_t measurement_rate);
+const uint8_t disableGLL[] = {CFG_HEADER_1,CFG_HEADER_2,CFG_MSG_ID_1,CFG_MSG_ID_2,CFG_MSG_LENGTH,CFG_MSG_CLASS,CFG_MSG_GLL_ID,0x00,GLL_CHECKSUM_A,GLL_CHECKSUM_B};//??
+const uint8_t disableGSV[] = {CFG_HEADER_1,CFG_HEADER_2,CFG_MSG_ID_1,CFG_MSG_ID_2,CFG_MSG_LENGTH,CFG_MSG_CLASS,CFG_MSG_GSV_ID,0x00,GSV_CHECKSUM_A,GSV_CHECKSUM_B};
+const uint8_t disableGSA[] = {CFG_HEADER_1,CFG_HEADER_2,CFG_MSG_ID_1,CFG_MSG_ID_2,CFG_MSG_LENGTH,CFG_MSG_CLASS,CFG_MSG_GSA_ID,0x00,GSA_CHECKSUM_A,GSA_CHECKSUM_B};
+const uint8_t disableGGA[] = {CFG_HEADER_1,CFG_HEADER_2,CFG_MSG_ID_1,CFG_MSG_ID_2,CFG_MSG_LENGTH,CFG_MSG_CLASS,CFG_MSG_GGA_ID,0x00,GGA_CHECKSUM_A,GGA_CHECKSUM_B};
+const uint8_t cfg_msg[][4]={disableGLL, disableGSV, disableGSA, disableGGA};
+uint8_t cfg_rate[]={0xB5,0x62,0x06,0x08,0x06,0,0,0x01,0x00,0x01,0x00,0,0};
+volatile uint8_t cfg_msg_index;
+
+uint8_t GPS_Init(USART_TypeDef *huart);
+void GPS_Config_Rate(USART_TypeDef *huart, uint16_t measurement_rate);
+void GPS_Transmit(USART_TypeDef *huart, uint8_t *message);
+void GPS_Receive(USART_TypeDef *huart, char *new_data);
+void Calc_checksum();
 
 #endif /* INC_NEO7M_GPS_H_ */
