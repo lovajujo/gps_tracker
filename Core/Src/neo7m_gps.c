@@ -7,29 +7,30 @@
 #include "neo7m_gps.h"
 
 
+uint8_t cfg_rate[]={0xB5,0x62,0x06,0x08,0x06,0,0,0x01,0x00,0x01,0x00,0,0};
+volatile uint8_t cfg_msg_index=0u;
 
-uint8_t GPS_Init(USART_TypeDef *huart, uint16_t measurement_rate, char byte_received)
+uint8_t GPS_Init(USART_TypeDef *huart, NEO7M_t *gps)
 {
-	cfg_msg_index=0u;
-	GPS_Config_Rate(&huart, measurement_rate);
-	GPS_Receive(&huart, &byte_received);
+	GPS_Config_Rate(&huart, &gps);
 	return 0;
 }
-void GPS_Config_Rate(USART_TypeDef *huart, uint16_t measurement_rate)
+void GPS_Config_Rate(USART_TypeDef *huart, NEO7M_t *gps)
 {
-	cfg_msg[5]=(uint8_t)(measurement_rate>>8) & MASK;
-	cfg_msg[6]=(uint8_t)measurement_rate & MASK;
+	uint8_t highbyte;
+	uint8_t lowbyte;
+	highbyte=(gps->measurement_rate>>8) & MASK;
+	lowbyte=gps->measurement_rate & MASK;
+	cfg_rate[5]=highbyte;
+	cfg_rate[6]=lowbyte;
 	Calc_checksum();
-	GPS_Transmit(&huart, *cfg_rate);
+	GPS_Transmit(&huart, cfg_rate);
 }
 void GPS_Transmit(USART_TypeDef *huart, uint8_t *message)
 {
 	HAL_UART_Transmit_DMA(&huart, &message, sizeof(message));
 }
-void GPS_Receive(USART_TypeDef *huart, char *new_data)
-{
-	HAL_UART_Receive_DMA(&huart, &new_data, 1);
-}
+
 void Calc_checksum()
 {
 	uint8_t c_s_A=0u;
@@ -52,3 +53,4 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 		GPS_Transmit(&huart, cfg_msg[cfg_msg_index-1]);
 	}
 }
+

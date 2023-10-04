@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "fatfs.h"
+#include "neo7m_gps.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -50,9 +51,10 @@ DMA_HandleTypeDef hdma_usart1_rx;
 FATFS fs;
 FIL file;
 FRESULT fres=FR_NOT_READY;
-const char* send="h";
-volatile char names[5][7]={"l1.txt", "l2.txt", "l3.txt", "l4.txt", "l5.txt"};
+NEO7M_t gps;
+volatile uint8_t file_name[5]="0.txt";
 volatile uint8_t index=0u;
+volatile uint8_t new_data=0u;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -67,7 +69,10 @@ static void MX_USART1_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	new_data=1;
+}
 /* USER CODE END 0 */
 
 /**
@@ -86,7 +91,6 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -103,16 +107,20 @@ int main(void)
   MX_FATFS_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+  gps.measurement_rate=MEASUREMENT_RATE_1HZ;
+  GPS_Init(&huart1, &gps);
   while(fres!=FR_OK)
   {
-  	  if(index<5)
+  	  if(index<10)
   	  {
+  		  file_name[0]=index;
   		  fres=f_mount(&fs, "", 0);
-  		  fres = f_open(&file, names[index], FA_CREATE_NEW | FA_WRITE);
+  		  fres = f_open(&file, file_name, FA_CREATE_NEW | FA_WRITE);
   		  __NOP();
   	  }
   	  index++;
   }
+  HAL_UART_Receive_DMA(&huart1, gps.gps_data, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -120,7 +128,12 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-
+	  if(new_data)
+	  {
+		  f_putc(gps.gps_data, &file);
+		  new_data=0u;
+		  HAL_UART_Receive_DMA(&huart1, gps.gps_data, 1);
+	  }
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
