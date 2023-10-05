@@ -19,11 +19,11 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "fatfs.h"
-#include "neo7m_gps.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include "neo7m_gps.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -51,10 +51,9 @@ DMA_HandleTypeDef hdma_usart1_rx;
 FATFS fs;
 FIL file;
 FRESULT fres=FR_NOT_READY;
-NEO7M_t gps;
-volatile uint8_t file_name[5]="0.txt";
-volatile uint8_t index=0u;
-volatile uint8_t new_data=0u;
+uint8_t file_name[5]="0.txt";
+uint8_t file_name_index=0u;
+uint8_t session_end=0u;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -69,9 +68,9 @@ static void MX_USART1_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	new_data=1;
+	session_end=1;
 }
 /* USER CODE END 0 */
 
@@ -107,33 +106,42 @@ int main(void)
   MX_FATFS_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  gps.measurement_rate=MEASUREMENT_RATE_1HZ;
-  GPS_Init(&huart1, &gps);
-  while(fres!=FR_OK)
+  if(GPS_Init(&huart1, MEASUREMENT_RATE_1HZ, DISABLE_MESSAGES)==HAL_OK)
   {
-  	  if(index<10)
-  	  {
-  		  file_name[0]=index;
-  		  fres=f_mount(&fs, "", 0);
-  		  fres = f_open(&file, file_name, FA_CREATE_NEW | FA_WRITE);
-  		  __NOP();
-  	  }
-  	  index++;
+	 while(fres!=FR_OK)
+	   {
+		  if(file_name_index<10)
+		  {
+			  file_name[0]=file_name_index;
+			  fres=f_mount(&fs, "", 0);
+			  fres = f_open(&file, "text.txt", FA_CREATE_NEW | FA_WRITE);
+			  __NOP();
+		  }
+	    file_name_index++;
+	  }
   }
-  HAL_UART_Receive_DMA(&huart1, gps.gps_data, 1);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* USER CODE END WHILE */
-	  if(new_data)
+	  if(gps.rx_cplt && fres==FR_OK)
 	  {
 		  f_putc(gps.gps_data, &file);
-		  new_data=0u;
-		  HAL_UART_Receive_DMA(&huart1, gps.gps_data, 1);
+		  gps.rx_cplt=0u;
+		  GPS_Receive(&huart1, &gps.gps_data);
 	  }
+	  if(session_end)
+	  {
+		  f_close(&file);
+		  f_mount(NULL, "", 0);
+		  fres=FR_NOT_READY;
+		  session_end=0;
+	  }
+    /* USER CODE END WHILE */
+
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -291,12 +299,22 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
 
+  /*Configure GPIO pin : PA3 */
+  GPIO_InitStruct.Pin = GPIO_PIN_3;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
   /*Configure GPIO pin : PA5 */
   GPIO_InitStruct.Pin = GPIO_PIN_5;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 
 }
 

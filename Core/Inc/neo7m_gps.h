@@ -20,6 +20,8 @@
 #define CFG_RATE_ID_1 0x06
 #define CFG_RATE_ID_2 0x08
 #define CFG_RATE_LENGTH 0x06
+#define CFG_RATE_NAV_RATE 0x01
+#define CFG_RATE_TIME_REF 0x01
 #define CFG_MSG_ID_1 0x06
 #define CFG_MSG_ID_2 0x01
 #define CFG_MSG_LENGTH 0x03
@@ -37,24 +39,22 @@
 #define GSV_CHECKSUM_A 0xFD
 #define GSV_CHECKSUM_B 0x0B
 #define MASK 0xFF
-
-const uint8_t cfg_msg[4][10]={
-		{CFG_HEADER_1,CFG_HEADER_2,CFG_MSG_ID_1,CFG_MSG_ID_2,CFG_MSG_LENGTH,CFG_MSG_CLASS,CFG_MSG_GLL_ID,0x00,GLL_CHECKSUM_A,GLL_CHECKSUM_B},
-		{CFG_HEADER_1,CFG_HEADER_2,CFG_MSG_ID_1,CFG_MSG_ID_2,CFG_MSG_LENGTH,CFG_MSG_CLASS,CFG_MSG_GSV_ID,0x00,GSV_CHECKSUM_A,GSV_CHECKSUM_B},
-		{CFG_HEADER_1,CFG_HEADER_2,CFG_MSG_ID_1,CFG_MSG_ID_2,CFG_MSG_LENGTH,CFG_MSG_CLASS,CFG_MSG_GSA_ID,0x00,GSA_CHECKSUM_A,GSA_CHECKSUM_B},
-		{CFG_HEADER_1,CFG_HEADER_2,CFG_MSG_ID_1,CFG_MSG_ID_2,CFG_MSG_LENGTH,CFG_MSG_CLASS,CFG_MSG_GGA_ID,0x00,GGA_CHECKSUM_A,GGA_CHECKSUM_B}
-};
-
-
+#define EMPTY_BYTE 0x00
+#define DISABLE_MESSAGES 1
+#define ENABLE_MESSAGES 0
 
 typedef struct{
 	uint16_t measurement_rate;
 	uint8_t gps_data;
-} NEO7M_t;
+	uint8_t rx_cplt;
+	uint8_t disable_unused;
+} GPS_t;
 
-uint8_t GPS_Init(USART_TypeDef *huart, NEO7M_t *gps);
-void GPS_Config_Rate(USART_TypeDef *huart, NEO7M_t *gps);
-void GPS_Transmit(USART_TypeDef *huart, uint8_t *message);
-void Calc_checksum();
+extern GPS_t gps;
+
+HAL_StatusTypeDef GPS_Init(UART_HandleTypeDef *huart, uint16_t msg_rate, uint8_t disable_unused);
+void GPS_Transmit(UART_HandleTypeDef *huart, uint8_t message);
+void GPS_Receive(UART_HandleTypeDef *huart, uint8_t *buffer);
+void Calc_checksum(uint8_t *message);
 
 #endif /* INC_NEO7M_GPS_H_ */
