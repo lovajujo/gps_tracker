@@ -33,6 +33,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define NAME_SIZE 9
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -51,8 +52,8 @@ DMA_HandleTypeDef hdma_usart1_rx;
 FATFS fs;
 FIL file;
 FRESULT fres=FR_NOT_READY;
-uint8_t file_name[5]="0.txt";
-uint8_t file_name_index=0u;
+uint8_t file_name[NAME_SIZE];
+uint8_t file_name_index=0;
 uint8_t session_end=0u;
 /* USER CODE END PV */
 
@@ -112,9 +113,9 @@ int main(void)
 	   {
 		  if(file_name_index<10)
 		  {
-			  file_name[0]=file_name_index;
+			  snprintf(file_name, NAME_SIZE, "log%d.txt", file_name_index);
 			  fres=f_mount(&fs, "", 0);
-			  fres = f_open(&file, "text.txt", FA_CREATE_NEW | FA_WRITE);
+			  fres = f_open(&file, file_name, FA_CREATE_NEW | FA_WRITE);
 			  __NOP();
 		  }
 	    file_name_index++;
@@ -127,7 +128,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  if(gps.rx_cplt && fres==FR_OK)
+	  if(gps.rx_cplt)
 	  {
 		  f_putc(gps.gps_data, &file);
 		  gps.rx_cplt=0u;
@@ -299,8 +300,8 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PA3 */
-  GPIO_InitStruct.Pin = GPIO_PIN_3;
+  /*Configure GPIO pin : PA4 */
+  GPIO_InitStruct.Pin = GPIO_PIN_4;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
@@ -313,8 +314,8 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 
 }
 
