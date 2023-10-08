@@ -82,11 +82,11 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 		cfg_msg_index++;
 		GPS_Transmit(huart, *cfg_msg[cfg_msg_index-1]);
 	}else{
-		GPS_Receive(huart, &gps.gps_data);
+		//GPS_Receive(huart, &gps.gps_data);
 	}
 }
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+/*void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	gps.rx_cplt=1;
-}
+}*/

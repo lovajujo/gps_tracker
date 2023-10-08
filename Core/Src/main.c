@@ -73,6 +73,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	session_end=1;
 }
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	gps.rx_cplt=1;
+}
 /* USER CODE END 0 */
 
 /**
@@ -120,6 +124,7 @@ int main(void)
 		  }
 	    file_name_index++;
 	  }
+	 HAL_UART_Receive_DMA(&huart1, &gps.gps_data, 1);
   }
 
   /* USER CODE END 2 */
@@ -132,7 +137,8 @@ int main(void)
 	  {
 		  f_putc(gps.gps_data, &file);
 		  gps.rx_cplt=0u;
-		  GPS_Receive(&huart1, &gps.gps_data);
+		  HAL_UART_Receive_DMA(&huart1, &gps.gps_data, 1);
+		  //GPS_Receive(&huart1, &gps.gps_data);
 	  }
 	  if(session_end)
 	  {
