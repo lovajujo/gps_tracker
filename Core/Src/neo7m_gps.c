@@ -35,6 +35,7 @@ HAL_StatusTypeDef GPS_Init(UART_HandleTypeDef *huart, uint16_t msg_rate, uint8_t
 	cfg_rate[6]=lowbyte;
 	Calc_checksum(cfg_rate, sizeof(cfg_rate));
 	GPS_Transmit(huart, cfg_rate, sizeof(cfg_rate));
+	while(cfg_msg_index<4);
 	return HAL_OK;
 }
 
