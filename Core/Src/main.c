@@ -73,10 +73,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	session_end=1;
 }
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-	gps.rx_cplt=1;
-}
+
 /* USER CODE END 0 */
 
 /**
@@ -120,11 +117,14 @@ int main(void)
 			  snprintf(file_name, NAME_SIZE, "log%d.txt", file_name_index);
 			  fres=f_mount(&fs, "", 0);
 			  fres = f_open(&file, file_name, FA_CREATE_NEW | FA_WRITE);
-			  __NOP();
+		  }
+		  if(file_name_index==9)
+		  {
+			  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, SET);
 		  }
 	    file_name_index++;
 	  }
-	 HAL_UART_Receive_DMA(&huart1, &gps.gps_data, 1);
+	 GPS_Receive(&huart1, &gps.gps_data,1);
   }
 
   /* USER CODE END 2 */
@@ -137,8 +137,7 @@ int main(void)
 	  {
 		  f_putc(gps.gps_data, &file);
 		  gps.rx_cplt=0u;
-		  HAL_UART_Receive_DMA(&huart1, &gps.gps_data, 1);
-		  //GPS_Receive(&huart1, &gps.gps_data);
+		  GPS_Receive(&huart1, &gps.gps_data,1);
 	  }
 	  if(session_end)
 	  {
@@ -302,9 +301,13 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PA4 */
   GPIO_InitStruct.Pin = GPIO_PIN_4;
@@ -318,6 +321,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB3 */
+  GPIO_InitStruct.Pin = GPIO_PIN_3;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI4_IRQn, 0, 0);
