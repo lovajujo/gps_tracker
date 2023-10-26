@@ -10,8 +10,8 @@
 HAL_StatusTypeDef MPU6500_Init(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu)
 {
 	HAL_I2C_Mem_Write(I2Cx, MPU6500_ADDRESS, PWR_MGMT_1, 1, RESET, 1, HAL_MAX_DELAY);
-	HAL_I2C_Mem_Write(I2Cx, MPU6500_ADDRESS, GYRO_CONFIG, 1, mpu->config.gRange, 1, HAL_MAX_DELAY);
-	HAL_I2C_Mem_Write(I2Cx, MPU6500_ADDRESS, ACCEL_CONFIG, 1, mpu->config.aRange, 1, HAL_MAX_DELAY);
+	HAL_I2C_Mem_Write(I2Cx, MPU6500_ADDRESS, GYRO_CONFIG, 1, &mpu->config.gRange, 1, HAL_MAX_DELAY);
+	HAL_I2C_Mem_Write(I2Cx, MPU6500_ADDRESS, ACCEL_CONFIG, 1, &mpu->config.aRange, 1, HAL_MAX_DELAY);
 	return HAL_OK;
 }
 
