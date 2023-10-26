@@ -24,6 +24,9 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include "neo7m_gps.h"
+#include "mpu6500.h"
+#include "hmc5883l.h"
+#include <cJSON.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -42,7 +45,12 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
+I2C_HandleTypeDef hi2c3;
+
 SPI_HandleTypeDef hspi1;
+
+TIM_HandleTypeDef htim6;
 
 UART_HandleTypeDef huart1;
 DMA_HandleTypeDef hdma_usart1_tx;
@@ -52,6 +60,10 @@ DMA_HandleTypeDef hdma_usart1_rx;
 FATFS fs;
 FIL file;
 FRESULT fres=FR_NOT_READY;
+MPU6500_t mpu;
+HMC5883L_t hmc;
+cJSON *json;
+char* json_str;
 uint8_t file_name[NAME_SIZE];
 uint8_t file_name_index=0;
 uint8_t session_end=0u;
@@ -63,6 +75,9 @@ static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_I2C1_Init(void);
+static void MX_I2C3_Init(void);
+static void MX_TIM6_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -72,6 +87,30 @@ static void MX_USART1_UART_Init(void);
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	session_end=1;
+}
+
+//5Hz
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	f_lseek(&file, sizeof(file));
+	f_puts(json_str, &file);
+	MPU6500_GetData(&hi2c1, &mpu);
+	HMC5883L_ReadData(&hi2c3, &hmc);
+}
+
+void Convert_to_JSON()
+{
+	json = cJSON_CreateObject();
+	cJSON_AddNumberToObject(json, "gyro_x", mpu.sensorData.gx);
+	cJSON_AddNumberToObject(json, "gyro_y", mpu.sensorData.gy);
+	cJSON_AddNumberToObject(json, "gyro_z", mpu.sensorData.gz);
+	cJSON_AddNumberToObject(json, "acc_x", mpu.sensorData.ax);
+	cJSON_AddNumberToObject(json, "acc_y", mpu.sensorData.ay);
+	cJSON_AddNumberToObject(json, "acc_z", mpu.sensorData.az);
+	cJSON_AddNumberToObject(json, "mag_x", hmc.x_data);
+	cJSON_AddNumberToObject(json, "mag_y", hmc.y_data);
+	cJSON_AddNumberToObject(json, "mag_z", hmc.z_data);
+	json_str=cJSON_Print(json);
 }
 
 /* USER CODE END 0 */
@@ -107,25 +146,38 @@ int main(void)
   MX_SPI1_Init();
   MX_FATFS_Init();
   MX_USART1_UART_Init();
+  MX_I2C1_Init();
+  MX_I2C3_Init();
+  MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
-  if(GPS_Init(&huart1, MEASUREMENT_RATE_1HZ, DISABLE_MESSAGES)==HAL_OK)
+  mpu.config.aRange=AFSR_4G; //500dps/s
+  mpu.config.gRange=GFSR_500DPS; //max 4G
+  hmc.mode=HMC_MODE_SINGLE;
+  hmc.gain=HMC_GAIN_1090; //sensitivity, 0.92 mG/LSb
+
+  GPS_Init(&huart1, MEASUREMENT_RATE_2HZ, DISABLE_MESSAGES);
+  HMC5883L_Init(&hi2c3, &hmc);
+  MPU6500_Init(&hi2c1, &mpu);
+
+  while(fres!=FR_OK)
   {
-	 while(fres!=FR_OK)
-	   {
-		  if(file_name_index<10)
-		  {
-			  snprintf(file_name, NAME_SIZE, "log%d.txt", file_name_index);
-			  fres=f_mount(&fs, "", 0);
-			  fres = f_open(&file, file_name, FA_CREATE_NEW | FA_WRITE);
-		  }
-		  if(file_name_index==9)
-		  {
-			  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, SET);
-		  }
-	    file_name_index++;
+	  if(file_name_index<10)
+	  {
+		  snprintf(file_name, NAME_SIZE, "log%d.txt", file_name_index);
+		  fres=f_mount(&fs, "", 0);
+		  fres = f_open(&file, file_name, FA_CREATE_NEW | FA_WRITE);
+		  __NOP();
 	  }
-	 GPS_Receive(&huart1, &gps.gps_data,1);
+	  if(file_name_index==9)
+	  {
+		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, SET);
+	  }
+		file_name_index++;
   }
+  MPU6500_GetData(&hi2c1, &mpu);
+  HMC5883L_ReadData(&hi2c3, &hmc);
+  HAL_TIM_Base_Start_IT(&htim6);
+  GPS_Receive(&huart1, &gps.gps_data,1);
 
   /* USER CODE END 2 */
 
@@ -135,6 +187,7 @@ int main(void)
   {
 	  if(gps.rx_cplt)
 	  {
+		  f_lseek(&file, f_size(&file));
 		  f_putc(gps.gps_data, &file);
 		  gps.rx_cplt=0u;
 		  GPS_Receive(&huart1, &gps.gps_data,1);
@@ -197,6 +250,102 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.Timing = 0x00000E14;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief I2C3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C3_Init(void)
+{
+
+  /* USER CODE BEGIN I2C3_Init 0 */
+
+  /* USER CODE END I2C3_Init 0 */
+
+  /* USER CODE BEGIN I2C3_Init 1 */
+
+  /* USER CODE END I2C3_Init 1 */
+  hi2c3.Instance = I2C3;
+  hi2c3.Init.Timing = 0x00000E14;
+  hi2c3.Init.OwnAddress1 = 0;
+  hi2c3.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c3.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c3.Init.OwnAddress2 = 0;
+  hi2c3.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c3.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c3.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c3, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c3, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C3_Init 2 */
+
+  /* USER CODE END I2C3_Init 2 */
+
+}
+
+/**
   * @brief SPI1 Initialization Function
   * @param None
   * @retval None
@@ -215,7 +364,7 @@ static void MX_SPI1_Init(void)
   hspi1.Instance = SPI1;
   hspi1.Init.Mode = SPI_MODE_MASTER;
   hspi1.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi1.Init.DataSize = SPI_DATASIZE_4BIT;
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
@@ -233,6 +382,44 @@ static void MX_SPI1_Init(void)
   /* USER CODE BEGIN SPI1_Init 2 */
 
   /* USER CODE END SPI1_Init 2 */
+
+}
+
+/**
+  * @brief TIM6 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM6_Init(void)
+{
+
+  /* USER CODE BEGIN TIM6_Init 0 */
+
+  /* USER CODE END TIM6_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM6_Init 1 */
+
+  /* USER CODE END TIM6_Init 1 */
+  htim6.Instance = TIM6;
+  htim6.Init.Prescaler = 79;
+  htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim6.Init.Period = 10000;
+  htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim6, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM6_Init 2 */
+
+  /* USER CODE END TIM6_Init 2 */
 
 }
 
