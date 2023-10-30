@@ -52,7 +52,7 @@ typedef struct
 	float direction;
 }HMC5883L_t;
 
-HAL_StatusTypeDef HMC5883L_Init(I2C_HandleTypeDef *i2c, HMC5883L_t *hmc);
+uint8_t HMC5883L_Init(I2C_HandleTypeDef *i2c, HMC5883L_t *hmc);
 void HMC5883L_ReadData(I2C_HandleTypeDef *i2c, HMC5883L_t *hmc);
 void HMC5883L_Calculate_direction(HMC5883L_t *hmc);
 

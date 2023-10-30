@@ -8,18 +8,18 @@
 #include <math.h>
 
 
-HAL_StatusTypeDef HMC5883L_Init(I2C_HandleTypeDef *i2c, HMC5883L_t *hmc)
+uint8_t HMC5883L_Init(I2C_HandleTypeDef *i2c, HMC5883L_t *hmc)
 {
 	//wrtie crB: set gain
-	HAL_I2C_Mem_Write(i2c, HMC_WRITE, HMC_CONFIG_B, 1, hmc->gain, 1, HAL_MAX_DELAY);
+	if(HAL_I2C_Mem_Write(i2c, HMC_WRITE, HMC_CONFIG_B, 1, hmc->gain, 1, HAL_MAX_DELAY)!=HAL_OK) return 1;
 	//write modereg: set mode
-	HAL_I2C_Mem_Write(i2c, HMC_WRITE, HMC_MODE, 1, hmc->mode, 1, HAL_MAX_DELAY);
-	//write crA: set sample rate if continuos mode
+	if(HAL_I2C_Mem_Write(i2c, HMC_WRITE, HMC_MODE, 1, hmc->mode, 1, HAL_MAX_DELAY)!=HAL_OK) return 2;
+	//write crA: set sample rate if continuous mode
 	if(hmc->mode==HMC_MODE_CONTINOUS)
 	{
-		HAL_I2C_Mem_Write(i2c, HMC_WRITE, HMC_CONFIG_A, 1, hmc->sample_rate, 1, HAL_MAX_DELAY);
+		if(HAL_I2C_Mem_Write(i2c, HMC_WRITE, HMC_CONFIG_A, 1, hmc->sample_rate, 1, HAL_MAX_DELAY)!=HAL_OK) return 3;
 	}
-	return HAL_OK;
+	return 0;
 }
 
 

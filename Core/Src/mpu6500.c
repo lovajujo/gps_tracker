@@ -7,19 +7,22 @@
 
 #include "mpu6500.h"
 
-HAL_StatusTypeDef MPU6500_Init(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu)
+uint8_t MPU6500_Init(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu)
 {
-	HAL_I2C_Mem_Write(I2Cx, MPU6500_ADDRESS, PWR_MGMT_1, 1, RESET, 1, HAL_MAX_DELAY);
-	HAL_I2C_Mem_Write(I2Cx, MPU6500_ADDRESS, GYRO_CONFIG, 1, &mpu->config.gRange, 1, HAL_MAX_DELAY);
-	HAL_I2C_Mem_Write(I2Cx, MPU6500_ADDRESS, ACCEL_CONFIG, 1, &mpu->config.aRange, 1, HAL_MAX_DELAY);
-	return HAL_OK;
+	uint8_t reset=0u;
+	uint16_t address=MPU6500_ADDRESS << 1;
+	HAL_StatusTypeDef r=HAL_I2C_IsDeviceReady(I2Cx, address, 1, 1000);
+	if(HAL_I2C_Mem_Write(I2Cx, address, PWR_MGMT_1, 1, &reset, 1, 1000)!=HAL_OK) return 1;
+	if(HAL_I2C_Mem_Write(I2Cx, address, GYRO_CONFIG, 1u, &mpu->config.gRange, 1u, HAL_MAX_DELAY)!=HAL_OK) return 2;
+	if(HAL_I2C_Mem_Write(I2Cx, address, ACCEL_CONFIG, 1u, &mpu->config.aRange, 1u, HAL_MAX_DELAY)!=HAL_OK) return 3;
+	return 0;
 }
 
 void MPU6500_GetRawData(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu)
 {
-	uint8_t addr=MPU6500_ADDRESS<<1;
+	uint8_t address=MPU6500_ADDRESS << 1;
 	int8_t acc_gyro[A_G_DATA_SIZE];
-	HAL_I2C_Mem_Read(I2Cx, addr, ACCEL_XOUT_H, 1, acc_gyro, A_G_DATA_SIZE, HAL_MAX_DELAY);
+	HAL_I2C_Mem_Read(I2Cx, address, ACCEL_XOUT_H, 1, acc_gyro, A_G_DATA_SIZE, HAL_MAX_DELAY);
 	mpu->rawData.ax = (int16_t)acc_gyro[0] << 8 | acc_gyro[1];
 	mpu->rawData.ay = (int16_t)acc_gyro[2] << 8 | acc_gyro[3];
 	mpu->rawData.az = (int16_t)acc_gyro[4] << 8 | acc_gyro[5];

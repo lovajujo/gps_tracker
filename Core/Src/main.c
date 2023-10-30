@@ -50,11 +50,11 @@ I2C_HandleTypeDef hi2c3;
 
 SPI_HandleTypeDef hspi1;
 
-TIM_HandleTypeDef htim6;
+TIM_HandleTypeDef htim1;
 
-UART_HandleTypeDef huart1;
-DMA_HandleTypeDef hdma_usart1_tx;
-DMA_HandleTypeDef hdma_usart1_rx;
+UART_HandleTypeDef huart2;
+DMA_HandleTypeDef hdma_usart2_rx;
+DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
 FATFS fs;
@@ -74,10 +74,10 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_SPI1_Init(void);
-static void MX_USART1_UART_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_USART2_UART_Init(void);
 static void MX_I2C3_Init(void);
-static void MX_TIM6_Init(void);
+static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -92,10 +92,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 //5Hz
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-	f_lseek(&file, sizeof(file));
-	f_puts(json_str, &file);
-	MPU6500_GetData(&hi2c1, &mpu);
-	HMC5883L_ReadData(&hi2c3, &hmc);
+	Convert_to_JSON();
 }
 
 void Convert_to_JSON()
@@ -111,6 +108,10 @@ void Convert_to_JSON()
 	cJSON_AddNumberToObject(json, "mag_y", hmc.y_data);
 	cJSON_AddNumberToObject(json, "mag_z", hmc.z_data);
 	json_str=cJSON_Print(json);
+	f_lseek(&file, 0u);
+	f_puts(json_str, &file);
+	MPU6500_GetData(&hi2c1, &mpu);
+	HMC5883L_ReadData(&hi2c3, &hmc);
 }
 
 /* USER CODE END 0 */
@@ -145,20 +146,19 @@ int main(void)
   MX_DMA_Init();
   MX_SPI1_Init();
   MX_FATFS_Init();
-  MX_USART1_UART_Init();
   MX_I2C1_Init();
+  MX_USART2_UART_Init();
   MX_I2C3_Init();
-  MX_TIM6_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   mpu.config.aRange=AFSR_4G; //500dps/s
   mpu.config.gRange=GFSR_500DPS; //max 4G
   hmc.mode=HMC_MODE_SINGLE;
   hmc.gain=HMC_GAIN_1090; //sensitivity, 0.92 mG/LSb
 
-  GPS_Init(&huart1, MEASUREMENT_RATE_2HZ, DISABLE_MESSAGES);
-  HMC5883L_Init(&hi2c3, &hmc);
-  MPU6500_Init(&hi2c1, &mpu);
-
+  uint8_t retv=HMC5883L_Init(&hi2c3, &hmc);
+  retv=MPU6500_Init(&hi2c1, &mpu);
+  GPS_Init(&huart2, MEASUREMENT_RATE_2HZ, DISABLE_MESSAGES);
   while(fres!=FR_OK)
   {
 	  if(file_name_index<10)
@@ -176,9 +176,9 @@ int main(void)
   }
   MPU6500_GetData(&hi2c1, &mpu);
   HMC5883L_ReadData(&hi2c3, &hmc);
-  HAL_TIM_Base_Start_IT(&htim6);
-  GPS_Receive(&huart1, &gps.gps_data,1);
-
+  GPS_Receive(&huart2, &gps.gps_data,1);
+  HAL_TIM_Base_Start_IT(&htim1);
+  __NOP();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -190,7 +190,7 @@ int main(void)
 		  f_lseek(&file, f_size(&file));
 		  f_putc(gps.gps_data, &file);
 		  gps.rx_cplt=0u;
-		  GPS_Receive(&huart1, &gps.gps_data,1);
+		  GPS_Receive(&huart2, &gps.gps_data,1);
 	  }
 	  if(session_end)
 	  {
@@ -364,7 +364,7 @@ static void MX_SPI1_Init(void)
   hspi1.Instance = SPI1;
   hspi1.Init.Mode = SPI_MODE_MASTER;
   hspi1.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi1.Init.DataSize = SPI_DATASIZE_4BIT;
+  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
@@ -386,75 +386,84 @@ static void MX_SPI1_Init(void)
 }
 
 /**
-  * @brief TIM6 Initialization Function
+  * @brief TIM1 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_TIM6_Init(void)
+static void MX_TIM1_Init(void)
 {
 
-  /* USER CODE BEGIN TIM6_Init 0 */
+  /* USER CODE BEGIN TIM1_Init 0 */
 
-  /* USER CODE END TIM6_Init 0 */
+  /* USER CODE END TIM1_Init 0 */
 
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
 
-  /* USER CODE BEGIN TIM6_Init 1 */
+  /* USER CODE BEGIN TIM1_Init 1 */
 
-  /* USER CODE END TIM6_Init 1 */
-  htim6.Instance = TIM6;
-  htim6.Init.Prescaler = 79;
-  htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim6.Init.Period = 10000;
-  htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 159;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 10000;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
   {
     Error_Handler();
   }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim6, &sMasterConfig) != HAL_OK)
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN TIM6_Init 2 */
+  /* USER CODE BEGIN TIM1_Init 2 */
 
-  /* USER CODE END TIM6_Init 2 */
+  /* USER CODE END TIM1_Init 2 */
 
 }
 
 /**
-  * @brief USART1 Initialization Function
+  * @brief USART2 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_USART1_UART_Init(void)
+static void MX_USART2_UART_Init(void)
 {
 
-  /* USER CODE BEGIN USART1_Init 0 */
+  /* USER CODE BEGIN USART2_Init 0 */
 
-  /* USER CODE END USART1_Init 0 */
+  /* USER CODE END USART2_Init 0 */
 
-  /* USER CODE BEGIN USART1_Init 1 */
+  /* USER CODE BEGIN USART2_Init 1 */
 
-  /* USER CODE END USART1_Init 1 */
-  huart1.Instance = USART1;
-  huart1.Init.BaudRate = 9600;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX_RX;
-  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-  huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart1) != HAL_OK)
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 9600;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart2.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN USART1_Init 2 */
+  /* USER CODE BEGIN USART2_Init 2 */
 
-  /* USER CODE END USART1_Init 2 */
+  /* USER CODE END USART2_Init 2 */
 
 }
 
@@ -468,12 +477,12 @@ static void MX_DMA_Init(void)
   __HAL_RCC_DMA1_CLK_ENABLE();
 
   /* DMA interrupt init */
-  /* DMA1_Channel4_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
-  /* DMA1_Channel5_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
+  /* DMA1_Channel6_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel6_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel6_IRQn);
+  /* DMA1_Channel7_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel7_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel7_IRQn);
 
 }
 

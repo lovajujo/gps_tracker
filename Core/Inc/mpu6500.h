@@ -12,14 +12,11 @@
 #include "stm32l4xx_hal.h"
 
 #define MPU6500_ADDRESS 0x68
-#define USER_CONTROL 106
-#define ACCEL_XOUT_H 59
-#define GYRO_CONFIG 27
-#define ACCEL_CONFIG 28
-#define MSB_SET 0x80
-#define CS_SELECT 0
-#define CS_DESELECT 1
-#define PWR_MGMT_1 107
+#define USER_CONTROL 0x6A
+#define ACCEL_XOUT_H 0x3B
+#define GYRO_CONFIG 0x1B
+#define ACCEL_CONFIG 0x1C
+#define PWR_MGMT_1 0x6B
 #define A_G_DATA_SIZE 14
 
 #define GFSR_250DPS 0x00
@@ -63,7 +60,7 @@ typedef struct
 	} config;
 } MPU6500_t;
 
-HAL_StatusTypeDef MPU6500_Init(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu);
+uint8_t MPU6500_Init(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu);
 void MPU6500_GetRawData(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu);
 void MPU6500_GetData(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu);
 float MPU6500_SetAccRange(I2C_HandleTypeDef *I2Cx,  MPU6500_t *mpu);
