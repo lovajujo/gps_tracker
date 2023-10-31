@@ -5,7 +5,6 @@
  *      Author: lovzs
  */
 #include "hmc5883l.h"
-#include <math.h>
 
 
 uint8_t HMC5883L_Init(I2C_HandleTypeDef *i2c, HMC5883L_t *hmc)
@@ -30,10 +29,5 @@ void HMC5883L_ReadData(I2C_HandleTypeDef *i2c, HMC5883L_t *hmc)
 	hmc->x_data=((uint16_t)buffer[0]<<8) | buffer[1];
 	hmc->z_data=((uint16_t)buffer[2]<<8) | buffer[3];
 	hmc->y_data=((uint16_t)buffer[4]<<8) | buffer[5];
-}
-
-void HMC5883L_Calculate_direction(HMC5883L_t *hmc)
-{
-	//TODO
 }
 

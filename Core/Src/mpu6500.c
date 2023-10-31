@@ -30,7 +30,7 @@ void MPU6500_GetRawData(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu)
 	mpu->rawData.gy = (int16_t)acc_gyro[10] << 8 | acc_gyro[11];
 	mpu->rawData.gz = (int16_t)acc_gyro[12] << 8 | acc_gyro[13];
 }
-void MPU6500_GetData(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu)
+void MPU6500_GetSensorData(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu)
 {
 	MPU6500_GetRawData(I2Cx, mpu);
 	float aMaxRange=MPU6500_SetAccRange(I2Cx, mpu);

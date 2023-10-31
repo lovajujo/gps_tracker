@@ -61,10 +61,8 @@ FATFS fs;
 FIL gps_file;
 FIL imu_file;
 FRESULT fres=FR_NOT_READY;
-MPU6500_t mpu;
-HMC5883L_t hmc;
-cJSON *json;
-char* json_str;
+volatile MPU6500_t mpu;
+volatile HMC5883L_t hmc;
 uint8_t file_name_gps[NAME_SIZE];
 uint8_t file_name_imu[NAME_SIZE];
 uint8_t file_name_index=0;
@@ -101,19 +99,26 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 }
 
-void Convert_to_JSON()
+char* Convert_to_JSON()
 {
-	json = cJSON_CreateObject();
-	cJSON_AddNumberToObject(json, "gyro_x", mpu.sensorData.gx);
-	cJSON_AddNumberToObject(json, "gyro_y", mpu.sensorData.gy);
-	cJSON_AddNumberToObject(json, "gyro_z", mpu.sensorData.gz);
-	cJSON_AddNumberToObject(json, "acc_x", mpu.sensorData.ax);
-	cJSON_AddNumberToObject(json, "acc_y", mpu.sensorData.ay);
-	cJSON_AddNumberToObject(json, "acc_z", mpu.sensorData.az);
-	cJSON_AddNumberToObject(json, "mag_x", hmc.x_data);
-	cJSON_AddNumberToObject(json, "mag_y", hmc.y_data);
-	cJSON_AddNumberToObject(json, "mag_z", hmc.z_data);
-	json_str=cJSON_Print(json);
+	cJSON *json = cJSON_CreateObject();
+	cJSON *measurement=cJSON_CreateObject();
+	cJSON_AddItemToObject(json, "measurement", measurement);
+	cJSON_AddNumberToObject(measurement, "gyro_range", mpu.config.gRange);
+	cJSON_AddNumberToObject(measurement, "gyro_x", mpu.rawData.gx);
+	cJSON_AddNumberToObject(measurement, "gyro_y", mpu.rawData.gy);
+	cJSON_AddNumberToObject(measurement, "gyro_z", mpu.rawData.gz);
+	cJSON_AddNumberToObject(measurement, "acc_range", mpu.config.aRange);
+	cJSON_AddNumberToObject(measurement, "acc_x", mpu.rawData.ax);
+	cJSON_AddNumberToObject(measurement, "acc_y", mpu.rawData.ay);
+	cJSON_AddNumberToObject(measurement, "acc_z", mpu.rawData.az);
+	cJSON_AddNumberToObject(measurement, "mag_range", hmc.gain);
+	cJSON_AddNumberToObject(measurement, "mag_x", hmc.x_data);
+	cJSON_AddNumberToObject(measurement, "mag_y", hmc.y_data);
+	cJSON_AddNumberToObject(measurement, "mag_z", hmc.z_data);
+	char *json_str=cJSON_Print(json);
+	cJSON_Delete(json);
+	return json_str;
 }
 
 /* USER CODE END 0 */
@@ -161,11 +166,11 @@ int main(void)
   uint8_t retv=HMC5883L_Init(&hi2c3, &hmc);
   retv=MPU6500_Init(&hi2c1, &mpu);
   GPS_Init(&huart2, MEASUREMENT_RATE_2HZ, DISABLE_MESSAGES);
-  //HAL_TIM_Base_Start_IT(&htim6);
+  HAL_TIM_Base_Start_IT(&htim6);
    __NOP();
   while(fres!=FR_OK)
   {
-	  if(file_name_index==9)
+	  if(file_name_index>7)
 	  {
 		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, SET);
 	  }
@@ -181,11 +186,10 @@ int main(void)
 		  fres=f_open(&imu_file, file_name_imu, FA_CREATE_NEW);
 		  if(fres!=FR_OK) continue;
 		  f_close(&imu_file);
-		  //f_close(&gps_file);
 	  }
   }
 
-  MPU6500_GetData(&hi2c1, &mpu);
+  MPU6500_GetRawData(&hi2c1, &mpu);
   HMC5883L_ReadData(&hi2c3, &hmc);
   GPS_Receive(&huart2, &gps.gps_data,1);
 
@@ -197,25 +201,25 @@ int main(void)
   {
 	  if(gps.rx_cplt && fres==FR_OK)
 	  {
-		  //f_open(&gps_file, file_name_gps, FA_OPEN_APPEND | FA_WRITE);
 		  f_putc(gps.gps_data, &gps_file);
-		  //f_close(&gps_file);
 		  gps.rx_cplt=0u;
 		  GPS_Receive(&huart2, &gps.gps_data,1);
 	  }
-	  /*if(time_elapsed && fres==FR_OK)
+	  if(time_elapsed && fres==FR_OK)
 	  {
-		  Convert_to_JSON();
+		  char *json_str=Convert_to_JSON();
 		  f_open(&imu_file, file_name_imu, FA_OPEN_APPEND | FA_WRITE);
 		  f_puts(json_str, &imu_file);
 		  f_close(&imu_file);
-		  MPU6500_GetData(&hi2c1, &mpu);
+		  cJSON_free(json_str);
+		  MPU6500_GetRawData(&hi2c1, &mpu);
 		  HMC5883L_ReadData(&hi2c3, &hmc);
 		  time_elapsed=0;
-	  }*/
+	  }
 	  if(session_end)
 	  {
 		  f_close(&gps_file);
+		  f_close(&imu_file);
 		  f_mount(NULL, "", 0);
 		  fres=FR_NOT_READY;
 		  session_end=0;

@@ -62,7 +62,7 @@ typedef struct
 
 uint8_t MPU6500_Init(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu);
 void MPU6500_GetRawData(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu);
-void MPU6500_GetData(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu);
+void MPU6500_GetSensorData(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu);
 float MPU6500_SetAccRange(I2C_HandleTypeDef *I2Cx,  MPU6500_t *mpu);
 float MPU6500_SetGyroRange(I2C_HandleTypeDef *I2Cx,  MPU6500_t *mpu);
 

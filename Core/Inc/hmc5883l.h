@@ -49,13 +49,9 @@ typedef struct
 {
 	uint16_t x_data, y_data, z_data;
 	uint8_t sample_rate, gain, mode;
-	float direction;
 }HMC5883L_t;
 
 uint8_t HMC5883L_Init(I2C_HandleTypeDef *i2c, HMC5883L_t *hmc);
 void HMC5883L_ReadData(I2C_HandleTypeDef *i2c, HMC5883L_t *hmc);
-void HMC5883L_Calculate_direction(HMC5883L_t *hmc);
-
-
 
 #endif /* INC_HMC5883L_H_ */
