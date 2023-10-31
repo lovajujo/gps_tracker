@@ -50,7 +50,7 @@ I2C_HandleTypeDef hi2c3;
 
 SPI_HandleTypeDef hspi1;
 
-TIM_HandleTypeDef htim1;
+TIM_HandleTypeDef htim6;
 
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart2_rx;
@@ -58,15 +58,18 @@ DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
 FATFS fs;
-FIL file;
+FIL gps_file;
+FIL imu_file;
 FRESULT fres=FR_NOT_READY;
 MPU6500_t mpu;
 HMC5883L_t hmc;
 cJSON *json;
 char* json_str;
-uint8_t file_name[NAME_SIZE];
+uint8_t file_name_gps[NAME_SIZE];
+uint8_t file_name_imu[NAME_SIZE];
 uint8_t file_name_index=0;
 uint8_t session_end=0u;
+uint8_t time_elapsed=0u;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -77,7 +80,7 @@ static void MX_SPI1_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_I2C3_Init(void);
-static void MX_TIM1_Init(void);
+static void MX_TIM6_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -89,10 +92,13 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	session_end=1;
 }
 
-//5Hz
+//2Hz
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-	Convert_to_JSON();
+	if(htim==&htim6)
+	{
+		time_elapsed=1;
+	}
 }
 
 void Convert_to_JSON()
@@ -108,10 +114,6 @@ void Convert_to_JSON()
 	cJSON_AddNumberToObject(json, "mag_y", hmc.y_data);
 	cJSON_AddNumberToObject(json, "mag_z", hmc.z_data);
 	json_str=cJSON_Print(json);
-	f_lseek(&file, 0u);
-	f_puts(json_str, &file);
-	MPU6500_GetData(&hi2c1, &mpu);
-	HMC5883L_ReadData(&hi2c3, &hmc);
 }
 
 /* USER CODE END 0 */
@@ -149,7 +151,7 @@ int main(void)
   MX_I2C1_Init();
   MX_USART2_UART_Init();
   MX_I2C3_Init();
-  MX_TIM1_Init();
+  MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
   mpu.config.aRange=AFSR_4G; //500dps/s
   mpu.config.gRange=GFSR_500DPS; //max 4G
@@ -159,42 +161,61 @@ int main(void)
   uint8_t retv=HMC5883L_Init(&hi2c3, &hmc);
   retv=MPU6500_Init(&hi2c1, &mpu);
   GPS_Init(&huart2, MEASUREMENT_RATE_2HZ, DISABLE_MESSAGES);
+  //HAL_TIM_Base_Start_IT(&htim6);
+   __NOP();
   while(fres!=FR_OK)
   {
-	  if(file_name_index<10)
-	  {
-		  snprintf(file_name, NAME_SIZE, "log%d.txt", file_name_index);
-		  fres=f_mount(&fs, "", 0);
-		  fres = f_open(&file, file_name, FA_CREATE_NEW | FA_WRITE);
-		  __NOP();
-	  }
 	  if(file_name_index==9)
 	  {
 		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, SET);
 	  }
-		file_name_index++;
+	  file_name_index++;
+	  if(file_name_index<10)
+	  {
+		  snprintf(file_name_gps, NAME_SIZE, "gps%d.txt", file_name_index);
+		  snprintf(file_name_imu, NAME_SIZE, "imu%d.txt", file_name_index);
+		  fres=f_mount(&fs, "", 0);
+		  if(fres!=FR_OK) continue;
+		  fres=f_open(&gps_file, file_name_gps, FA_CREATE_NEW | FA_WRITE);
+		  if(fres!=FR_OK) continue;
+		  fres=f_open(&imu_file, file_name_imu, FA_CREATE_NEW);
+		  if(fres!=FR_OK) continue;
+		  f_close(&imu_file);
+		  //f_close(&gps_file);
+	  }
   }
+
   MPU6500_GetData(&hi2c1, &mpu);
   HMC5883L_ReadData(&hi2c3, &hmc);
   GPS_Receive(&huart2, &gps.gps_data,1);
-  HAL_TIM_Base_Start_IT(&htim1);
-  __NOP();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  if(gps.rx_cplt)
+	  if(gps.rx_cplt && fres==FR_OK)
 	  {
-		  f_lseek(&file, f_size(&file));
-		  f_putc(gps.gps_data, &file);
+		  //f_open(&gps_file, file_name_gps, FA_OPEN_APPEND | FA_WRITE);
+		  f_putc(gps.gps_data, &gps_file);
+		  //f_close(&gps_file);
 		  gps.rx_cplt=0u;
 		  GPS_Receive(&huart2, &gps.gps_data,1);
 	  }
+	  /*if(time_elapsed && fres==FR_OK)
+	  {
+		  Convert_to_JSON();
+		  f_open(&imu_file, file_name_imu, FA_OPEN_APPEND | FA_WRITE);
+		  f_puts(json_str, &imu_file);
+		  f_close(&imu_file);
+		  MPU6500_GetData(&hi2c1, &mpu);
+		  HMC5883L_ReadData(&hi2c3, &hmc);
+		  time_elapsed=0;
+	  }*/
 	  if(session_end)
 	  {
-		  f_close(&file);
+		  f_close(&gps_file);
 		  f_mount(NULL, "", 0);
 		  fres=FR_NOT_READY;
 		  session_end=0;
@@ -386,49 +407,40 @@ static void MX_SPI1_Init(void)
 }
 
 /**
-  * @brief TIM1 Initialization Function
+  * @brief TIM6 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_TIM1_Init(void)
+static void MX_TIM6_Init(void)
 {
 
-  /* USER CODE BEGIN TIM1_Init 0 */
+  /* USER CODE BEGIN TIM6_Init 0 */
 
-  /* USER CODE END TIM1_Init 0 */
+  /* USER CODE END TIM6_Init 0 */
 
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
 
-  /* USER CODE BEGIN TIM1_Init 1 */
+  /* USER CODE BEGIN TIM6_Init 1 */
 
-  /* USER CODE END TIM1_Init 1 */
-  htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 159;
-  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 10000;
-  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim1.Init.RepetitionCounter = 0;
-  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
-  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  /* USER CODE END TIM6_Init 1 */
+  htim6.Instance = TIM6;
+  htim6.Init.Prescaler = 799;
+  htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim6.Init.Period = 10000;
+  htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
   {
     Error_Handler();
   }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim6, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN TIM1_Init 2 */
+  /* USER CODE BEGIN TIM6_Init 2 */
 
-  /* USER CODE END TIM1_Init 2 */
+  /* USER CODE END TIM6_Init 2 */
 
 }
 
