@@ -68,6 +68,8 @@ uint8_t file_name_imu[NAME_SIZE];
 uint8_t file_name_index=0;
 uint8_t session_end=0u;
 uint8_t time_elapsed=0u;
+uint8_t time_counter=0u;
+uint8_t imu_sampling_rate;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -90,12 +92,20 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	session_end=1;
 }
 
-//2Hz
+/*
+ * 10Hz
+ * 10Hz/imu_sampling_rate = mpu and hmc sampling frequency
+ */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if(htim==&htim6)
 	{
-		time_elapsed=1;
+		time_counter++;
+		if(time_counter==imu_sampling_rate)
+		{
+			time_elapsed=1;
+			time_counter=0;
+		}
 	}
 }
 
@@ -104,18 +114,28 @@ char* Convert_to_JSON()
 	cJSON *json = cJSON_CreateObject();
 	cJSON *measurement=cJSON_CreateObject();
 	cJSON_AddItemToObject(json, "measurement", measurement);
-	cJSON_AddNumberToObject(measurement, "gyro_range", mpu.config.gRange);
 	cJSON_AddNumberToObject(measurement, "gyro_x", mpu.rawData.gx);
 	cJSON_AddNumberToObject(measurement, "gyro_y", mpu.rawData.gy);
 	cJSON_AddNumberToObject(measurement, "gyro_z", mpu.rawData.gz);
-	cJSON_AddNumberToObject(measurement, "acc_range", mpu.config.aRange);
 	cJSON_AddNumberToObject(measurement, "acc_x", mpu.rawData.ax);
 	cJSON_AddNumberToObject(measurement, "acc_y", mpu.rawData.ay);
 	cJSON_AddNumberToObject(measurement, "acc_z", mpu.rawData.az);
-	cJSON_AddNumberToObject(measurement, "mag_range", hmc.gain);
 	cJSON_AddNumberToObject(measurement, "mag_x", hmc.x_data);
 	cJSON_AddNumberToObject(measurement, "mag_y", hmc.y_data);
 	cJSON_AddNumberToObject(measurement, "mag_z", hmc.z_data);
+	char *json_str=cJSON_Print(json);
+	cJSON_Delete(json);
+	return json_str;
+}
+
+char* JSON_Header()
+{
+	cJSON *json = cJSON_CreateObject();
+	cJSON *config=cJSON_CreateObject();
+	cJSON_AddItemToObject(json, "config", config);
+	cJSON_AddNumberToObject(config, "gyro_range", mpu.config.gMaxRange);
+	cJSON_AddNumberToObject(config, "acc_range", mpu.config.aMaxRange);
+	cJSON_AddNumberToObject(config, "sample_rate", imu_sampling_rate);
 	char *json_str=cJSON_Print(json);
 	cJSON_Delete(json);
 	return json_str;
@@ -158,16 +178,18 @@ int main(void)
   MX_I2C3_Init();
   MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
-  mpu.config.aRange=AFSR_4G; //500dps/s
+  mpu.config.aRange=AFSR_4G; //500dps
   mpu.config.gRange=GFSR_500DPS; //max 4G
   hmc.mode=HMC_MODE_SINGLE;
   hmc.gain=HMC_GAIN_1090; //sensitivity, 0.92 mG/LSb
+  imu_sampling_rate=5; //10/imu_sampling_rate=mpu and hmc sampling frequency-->2Hz
 
-  uint8_t retv=HMC5883L_Init(&hi2c3, &hmc);
-  retv=MPU6500_Init(&hi2c1, &mpu);
+  HMC5883L_Init(&hi2c3, &hmc);
+  MPU6500_Init(&hi2c1, &mpu);
   GPS_Init(&huart2, MEASUREMENT_RATE_2HZ, DISABLE_MESSAGES);
   HAL_TIM_Base_Start_IT(&htim6);
-   __NOP();
+
+  //find available file name, if failed or last two available: LED on
   while(fres!=FR_OK)
   {
 	  if(file_name_index>7)
@@ -188,6 +210,11 @@ int main(void)
 		  f_close(&imu_file);
 	  }
   }
+  char* json_str=JSON_Header();
+  f_open(&imu_file, file_name_imu, FA_OPEN_APPEND | FA_WRITE);
+  f_puts(json_str, &imu_file);
+  cJSON_free(json_str);
+  f_close(&imu_file);
 
   MPU6500_GetRawData(&hi2c1, &mpu);
   HMC5883L_ReadData(&hi2c3, &hmc);
@@ -430,7 +457,7 @@ static void MX_TIM6_Init(void)
   htim6.Instance = TIM6;
   htim6.Init.Prescaler = 799;
   htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim6.Init.Period = 10000;
+  htim6.Init.Period = 1000;
   htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
   {

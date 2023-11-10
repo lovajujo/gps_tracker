@@ -7,17 +7,24 @@
 
 #include "mpu6500.h"
 
+/*
+ * initialization of MPU6xxx sensor: reset power management, configure gyroscope and accelerometer max range
+ */
 uint8_t MPU6500_Init(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu)
 {
 	uint8_t reset=0u;
 	uint16_t address=MPU6500_ADDRESS << 1;
-	HAL_StatusTypeDef r=HAL_I2C_IsDeviceReady(I2Cx, address, 1, 1000);
-	if(HAL_I2C_Mem_Write(I2Cx, address, PWR_MGMT_1, 1, &reset, 1, 1000)!=HAL_OK) return 1;
+	if(HAL_I2C_Mem_Write(I2Cx, address, PWR_MGMT_1, 1u, &reset, 1u, 1000)!=HAL_OK) return 1;
 	if(HAL_I2C_Mem_Write(I2Cx, address, GYRO_CONFIG, 1u, &mpu->config.gRange, 1u, HAL_MAX_DELAY)!=HAL_OK) return 2;
 	if(HAL_I2C_Mem_Write(I2Cx, address, ACCEL_CONFIG, 1u, &mpu->config.aRange, 1u, HAL_MAX_DELAY)!=HAL_OK) return 3;
+	MPU6500_SetAccRange(I2Cx, mpu);
+	MPU6500_SetGyroRange(I2Cx, mpu);
 	return 0;
 }
 
+/*
+ * read data registers
+ */
 void MPU6500_GetRawData(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu)
 {
 	uint8_t address=MPU6500_ADDRESS << 1;
@@ -30,65 +37,70 @@ void MPU6500_GetRawData(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu)
 	mpu->rawData.gy = (int16_t)acc_gyro[10] << 8 | acc_gyro[11];
 	mpu->rawData.gz = (int16_t)acc_gyro[12] << 8 | acc_gyro[13];
 }
+
+/*
+ * calculate acceleration and angular velocity
+ */
 void MPU6500_GetSensorData(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu)
 {
 	MPU6500_GetRawData(I2Cx, mpu);
-	float aMaxRange=MPU6500_SetAccRange(I2Cx, mpu);
-	float gMaxRange=MPU6500_SetGyroRange(I2Cx, mpu);
-	mpu->sensorData.ax=mpu->rawData.ax/aMaxRange;
-	mpu->sensorData.ay=mpu->rawData.ay/aMaxRange;
-	mpu->sensorData.az=mpu->rawData.az/aMaxRange;
-	mpu->sensorData.gx=mpu->rawData.gx/gMaxRange;
-	mpu->sensorData.gy=mpu->rawData.gy/gMaxRange;
-	mpu->sensorData.gz=mpu->rawData.gz/gMaxRange;
+	mpu->sensorData.ax=mpu->rawData.ax/mpu->config.aMaxRange;
+	mpu->sensorData.ay=mpu->rawData.ay/mpu->config.aMaxRange;
+	mpu->sensorData.az=mpu->rawData.az/mpu->config.aMaxRange;
+	mpu->sensorData.gx=mpu->rawData.gx/mpu->config.gMaxRange;
+	mpu->sensorData.gy=mpu->rawData.gy/mpu->config.gMaxRange;
+	mpu->sensorData.gz=mpu->rawData.gz/mpu->config.gMaxRange;
 }
 
-
-float MPU6500_SetAccRange(I2C_HandleTypeDef *I2Cx,  MPU6500_t *mpu)
+/*
+ * set maximum range of accelerometer
+ */
+void MPU6500_SetAccRange(I2C_HandleTypeDef *I2Cx,  MPU6500_t *mpu)
 {
 	float maxrange=0.0f;
 	switch(mpu->config.aRange)
 	{
 		case AFSR_2G:
-			maxrange=AFSR_2G_MAX;
+			mpu->config.aMaxRange=AFSR_2G_MAX;
 			break;
 		case AFSR_4G:
-			maxrange=AFSR_4G_MAX;
+			mpu->config.aMaxRange=AFSR_4G_MAX;
 			break;
 		case AFSR_8G:
-			maxrange=AFSR_8G_MAX;
+			mpu->config.aMaxRange=AFSR_8G_MAX;
 			break;
 		case AFSR_16G:
-			maxrange=AFSR_16G_MAX;
+			mpu->config.aMaxRange=AFSR_16G_MAX;
 			break;
 		default:
-			maxrange=AFSR_2G_MAX;
+			mpu->config.aMaxRange=AFSR_2G_MAX;
 			break;
 	}
-	return maxrange;
 }
-float MPU6500_SetGyroRange(I2C_HandleTypeDef *I2Cx,  MPU6500_t *mpu)
+
+/*
+ * set maximum range of gyroscope
+ */
+void MPU6500_SetGyroRange(I2C_HandleTypeDef *I2Cx,  MPU6500_t *mpu)
 {
-	float maxrange=0.0f;
 	switch(mpu->config.gRange)
 	{
 		case GFSR_250DPS:
-			maxrange=GFSR_250DPS_MAX;
+			mpu->config.gMaxRange=GFSR_250DPS_MAX;
 			break;
 		case GFSR_500DPS:
-			maxrange=GFSR_500DPS_MAX;
+			mpu->config.gMaxRange=GFSR_500DPS_MAX;
 			break;
 		case GFSR_1000DPS:
-			maxrange=GFSR_1000DPS_MAX;
+			mpu->config.gMaxRange=GFSR_1000DPS_MAX;
 			break;
 		case GFSR_2000DPS:
-			maxrange=GFSR_2000DPS_MAX;
+			mpu->config.gMaxRange=GFSR_2000DPS_MAX;
 			break;
 		default:
-			maxrange=GFSR_250DPS_MAX;
+			mpu->config.gMaxRange=GFSR_250DPS_MAX;
 			break;
 	}
-	return maxrange;
 }
 
 

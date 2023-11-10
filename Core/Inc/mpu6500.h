@@ -39,8 +39,6 @@
 #define AFSR_8G_MAX 4096.0f
 #define AFSR_16G_MAX 2048.0f
 
-#define MFSF 0.6f
-
 
 typedef struct
 {
@@ -57,13 +55,14 @@ typedef struct
 	struct
 	{
 		uint8_t aRange, gRange;
+		uint16_t aMaxRange, gMaxRange;
 	} config;
 } MPU6500_t;
 
 uint8_t MPU6500_Init(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu);
 void MPU6500_GetRawData(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu);
 void MPU6500_GetSensorData(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu);
-float MPU6500_SetAccRange(I2C_HandleTypeDef *I2Cx,  MPU6500_t *mpu);
-float MPU6500_SetGyroRange(I2C_HandleTypeDef *I2Cx,  MPU6500_t *mpu);
+void MPU6500_SetAccRange(I2C_HandleTypeDef *I2Cx,  MPU6500_t *mpu);
+void MPU6500_SetGyroRange(I2C_HandleTypeDef *I2Cx,  MPU6500_t *mpu);
 
 #endif /* INC_MPU6500_H_ */

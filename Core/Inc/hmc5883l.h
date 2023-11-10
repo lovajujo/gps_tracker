@@ -17,11 +17,6 @@
 #define HMC_CONFIG_B 0x01
 #define HMC_MODE 0x02
 #define HMC_X_DATA_H 0x03
-#define HMC_X_DATA_L 0x04
-#define HMC_Y_DATA_H 0x05
-#define HMC_Y_DATA_L 0x06
-#define HMC_Z_DATA_H 0x07
-#define HMC_Z_DATA_L 0x08
 
 #define HMC_GAIN_1370 0x00
 #define HMC_GAIN_1090 0x20
