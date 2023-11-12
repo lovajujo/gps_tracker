@@ -1,33 +1,33 @@
 /*
- * mpu6500.c
+ * mpu6050.c
  *
  *  Created on: Jul 5, 2023
  *      Author: lovzs
  */
 
-#include "mpu6500.h"
+#include <mpu6050.h>
 
 /*
  * initialization of MPU6xxx sensor: reset power management, configure gyroscope and accelerometer max range
  */
-uint8_t MPU6500_Init(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu)
+uint8_t MPU6050_Init(I2C_HandleTypeDef *I2Cx, MPU6050_t *mpu)
 {
 	uint8_t reset=0u;
-	uint16_t address=MPU6500_ADDRESS << 1;
+	uint16_t address=MPU6050_ADDRESS << 1;
 	if(HAL_I2C_Mem_Write(I2Cx, address, PWR_MGMT_1, 1u, &reset, 1u, 1000)!=HAL_OK) return 1;
 	if(HAL_I2C_Mem_Write(I2Cx, address, GYRO_CONFIG, 1u, &mpu->config.gRange, 1u, HAL_MAX_DELAY)!=HAL_OK) return 2;
 	if(HAL_I2C_Mem_Write(I2Cx, address, ACCEL_CONFIG, 1u, &mpu->config.aRange, 1u, HAL_MAX_DELAY)!=HAL_OK) return 3;
-	MPU6500_SetAccRange(I2Cx, mpu);
-	MPU6500_SetGyroRange(I2Cx, mpu);
+	MPU6050_SetAccRange(I2Cx, mpu);
+	MPU6050_SetGyroRange(I2Cx, mpu);
 	return 0;
 }
 
 /*
  * read data registers
  */
-void MPU6500_GetRawData(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu)
+void MPU6050_GetRawData(I2C_HandleTypeDef *I2Cx, MPU6050_t *mpu)
 {
-	uint8_t address=MPU6500_ADDRESS << 1;
+	uint8_t address=MPU6050_ADDRESS << 1;
 	int8_t acc_gyro[A_G_DATA_SIZE];
 	HAL_I2C_Mem_Read(I2Cx, address, ACCEL_XOUT_H, 1, acc_gyro, A_G_DATA_SIZE, HAL_MAX_DELAY);
 	mpu->rawData.ax = (int16_t)acc_gyro[0] << 8 | acc_gyro[1];
@@ -41,7 +41,7 @@ void MPU6500_GetRawData(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu)
 /*
  * calculate acceleration and angular velocity
  */
-void MPU6500_GetSensorData(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu)
+void MPU6050_GetSensorData(I2C_HandleTypeDef *I2Cx, MPU6050_t *mpu)
 {
 	MPU6500_GetRawData(I2Cx, mpu);
 	mpu->sensorData.ax=mpu->rawData.ax/mpu->config.aMaxRange;
@@ -55,7 +55,7 @@ void MPU6500_GetSensorData(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu)
 /*
  * set maximum range of accelerometer
  */
-void MPU6500_SetAccRange(I2C_HandleTypeDef *I2Cx,  MPU6500_t *mpu)
+void MPU6050_SetAccRange(I2C_HandleTypeDef *I2Cx,  MPU6050_t *mpu)
 {
 	float maxrange=0.0f;
 	switch(mpu->config.aRange)
@@ -81,7 +81,7 @@ void MPU6500_SetAccRange(I2C_HandleTypeDef *I2Cx,  MPU6500_t *mpu)
 /*
  * set maximum range of gyroscope
  */
-void MPU6500_SetGyroRange(I2C_HandleTypeDef *I2Cx,  MPU6500_t *mpu)
+void MPU6050_SetGyroRange(I2C_HandleTypeDef *I2Cx,  MPU6050_t *mpu)
 {
 	switch(mpu->config.gRange)
 	{

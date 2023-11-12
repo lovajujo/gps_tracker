@@ -24,9 +24,9 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include "neo7m_gps.h"
-#include "mpu6500.h"
 #include "hmc5883l.h"
 #include <cJSON.h>
+#include <mpu6050.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -61,7 +61,7 @@ FATFS fs;
 FIL gps_file;
 FIL imu_file;
 FRESULT fres=FR_NOT_READY;
-volatile MPU6500_t mpu;
+volatile MPU6050_t mpu;
 volatile HMC5883L_t hmc;
 uint8_t file_name_gps[NAME_SIZE];
 uint8_t file_name_imu[NAME_SIZE];
@@ -185,7 +185,7 @@ int main(void)
   imu_sampling_rate=5; //10/imu_sampling_rate=mpu and hmc sampling frequency-->2Hz
 
   HMC5883L_Init(&hi2c3, &hmc);
-  MPU6500_Init(&hi2c1, &mpu);
+  MPU6050_Init(&hi2c1, &mpu);
   GPS_Init(&huart2, MEASUREMENT_RATE_2HZ, DISABLE_MESSAGES);
   HAL_TIM_Base_Start_IT(&htim6);
 
@@ -216,7 +216,7 @@ int main(void)
   cJSON_free(json_str);
   f_close(&imu_file);
 
-  MPU6500_GetRawData(&hi2c1, &mpu);
+  MPU6050_GetRawData(&hi2c1, &mpu);
   HMC5883L_ReadData(&hi2c3, &hmc);
   GPS_Receive(&huart2, &gps.gps_data,1);
 
@@ -239,7 +239,7 @@ int main(void)
 		  f_puts(json_str, &imu_file);
 		  f_close(&imu_file);
 		  cJSON_free(json_str);
-		  MPU6500_GetRawData(&hi2c1, &mpu);
+		  MPU6050_GetRawData(&hi2c1, &mpu);
 		  HMC5883L_ReadData(&hi2c3, &hmc);
 		  time_elapsed=0;
 	  }

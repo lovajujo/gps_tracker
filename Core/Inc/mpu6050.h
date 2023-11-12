@@ -1,17 +1,17 @@
 /*
- * mpu6500.h
+ * mpu6050.h
  *
  *  Created on: Jul 5, 2023
  *      Author: lovzs
  */
 
-#ifndef INC_MPU6500_H_
-#define INC_MPU6500_H_
+#ifndef INC_MPU6050_H_
+#define INC_MPU6050_H_
 
 #include <stdint.h>
 #include "stm32l4xx_hal.h"
 
-#define MPU6500_ADDRESS 0x68
+#define MPU6050_ADDRESS 0x68
 #define USER_CONTROL 0x6A
 #define ACCEL_XOUT_H 0x3B
 #define GYRO_CONFIG 0x1B
@@ -57,12 +57,12 @@ typedef struct
 		uint8_t aRange, gRange;
 		uint16_t aMaxRange, gMaxRange;
 	} config;
-} MPU6500_t;
+} MPU6050_t;
 
-uint8_t MPU6500_Init(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu);
-void MPU6500_GetRawData(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu);
-void MPU6500_GetSensorData(I2C_HandleTypeDef *I2Cx, MPU6500_t *mpu);
-void MPU6500_SetAccRange(I2C_HandleTypeDef *I2Cx,  MPU6500_t *mpu);
-void MPU6500_SetGyroRange(I2C_HandleTypeDef *I2Cx,  MPU6500_t *mpu);
+uint8_t MPU6050_Init(I2C_HandleTypeDef *I2Cx, MPU6050_t *mpu);
+void MPU6050_GetRawData(I2C_HandleTypeDef *I2Cx, MPU6050_t *mpu);
+void MPU6050_GetSensorData(I2C_HandleTypeDef *I2Cx, MPU6050_t *mpu);
+void MPU6050_SetAccRange(I2C_HandleTypeDef *I2Cx,  MPU6050_t *mpu);
+void MPU6050_SetGyroRange(I2C_HandleTypeDef *I2Cx,  MPU6050_t *mpu);
 
-#endif /* INC_MPU6500_H_ */
+#endif /* INC_MPU6050_H_ */
