@@ -7,15 +7,15 @@
 #include "hmc5883l.h"
 
 /*
- * initialization of magnetometer modul: configure max gain, mode, sampling rate (in contiuous mode)
+ * initialization of magnetometer modul: configure max gain, mode, sampling rate (in continuous mode)
  */
 uint8_t HMC5883L_Init(I2C_HandleTypeDef *i2c, HMC5883L_t *hmc)
 {
-	//write config register B: set gain
+	//set gain
 	if(HAL_I2C_Mem_Write(i2c, HMC_WRITE, HMC_CONFIG_B, 1, hmc->gain, 1, HAL_MAX_DELAY)!=HAL_OK) return 1;
 	//write mode register: set mode
 	if(HAL_I2C_Mem_Write(i2c, HMC_WRITE, HMC_MODE, 1, hmc->mode, 1, HAL_MAX_DELAY)!=HAL_OK) return 2;
-	//write config register A: set sample rate if continuous mode
+	//set sample rate if continuous mode
 	if(hmc->mode==HMC_MODE_CONTINOUS)
 	{
 		if(HAL_I2C_Mem_Write(i2c, HMC_WRITE, HMC_CONFIG_A, 1, hmc->sample_rate, 1, HAL_MAX_DELAY)!=HAL_OK) return 3;

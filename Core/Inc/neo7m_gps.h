@@ -10,11 +10,11 @@
 
 #include "stm32l4xx_hal.h"
 
-#define MEASUREMENT_RATE_1HZ 0xE83
-#define MEASUREMENT_RATE_2HZ 0x1F4
-#define MEASUREMENT_RATE_4HZ 0xFA
-#define MEASUREMENT_RATE_5HZ 0xC8
-#define MEASUREMENT_RATE_10HZ 0x64
+#define MEASUREMENT_RATE_1000MS 0xE83
+#define MEASUREMENT_RATE_500MS 0x1F4
+#define MEASUREMENT_RATE_250MS 0xFA
+#define MEASUREMENT_RATE_200MS 0xC8
+#define MEASUREMENT_RATE_100MS 0x64
 #define CFG_HEADER_1 0xB5
 #define CFG_HEADER_2 0x62
 #define CFG_RATE_ID_1 0x06
@@ -47,14 +47,12 @@
 
 typedef struct{
 	uint16_t measurement_rate;
-	uint8_t gps_data;
-	uint8_t rx_cplt;
-	uint8_t disable_unused;
+	uint8_t gps_data, rx_cplt, recommended_min_info;
 } GPS_t;
 
 extern GPS_t gps;
 
-HAL_StatusTypeDef GPS_Init(UART_HandleTypeDef *huart, uint16_t msg_rate, uint8_t disable_unused);
+HAL_StatusTypeDef GPS_Init(UART_HandleTypeDef *huart, uint16_t msg_rate, uint8_t recom_min_info);
 void GPS_Transmit(UART_HandleTypeDef *huart, uint8_t *message, uint8_t size);
 void GPS_Receive(UART_HandleTypeDef *huart, uint8_t *buffer, uint8_t size);
 void Calc_checksum(uint8_t *message, uint8_t arraysize);

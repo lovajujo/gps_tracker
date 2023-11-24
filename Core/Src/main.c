@@ -70,6 +70,8 @@ uint8_t session_end=0u;
 uint8_t time_elapsed=0u;
 uint8_t time_counter=0u;
 uint8_t imu_sampling_rate;
+uint8_t g=0;
+uint8_t i=0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -141,6 +143,29 @@ char* JSON_Header()
 	return json_str;
 }
 
+//find available file name, if failed or last two available: LED on
+FRESULT find_file_name()
+{
+   if(file_name_index>7)
+   {
+	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, SET);
+   }
+   file_name_index++;
+   if(file_name_index<10)
+   {
+	   snprintf(file_name_gps, NAME_SIZE, "gps%d.txt", file_name_index);
+	   snprintf(file_name_imu, NAME_SIZE, "imu%d.txt", file_name_index);
+	   f_mount(&fs, "", 0);
+	   fres=f_open(&gps_file, file_name_gps, FA_CREATE_NEW | FA_WRITE);
+	   if(fres!=FR_OK) return fres;
+	   //f_close(&gps_file);
+	   fres=f_open(&imu_file, file_name_imu, FA_CREATE_NEW);
+	   if(fres!=FR_OK) return fres;
+	   f_close(&imu_file);
+   }
+  return fres;
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -186,29 +211,12 @@ int main(void)
 
   HMC5883L_Init(&hi2c3, &hmc);
   MPU6050_Init(&hi2c1, &mpu);
-  GPS_Init(&huart2, MEASUREMENT_RATE_2HZ, DISABLE_MESSAGES);
+  GPS_Init(&huart2, MEASUREMENT_RATE_100MS, DISABLE_MESSAGES);
   HAL_TIM_Base_Start_IT(&htim6);
 
-  //find available file name, if failed or last two available: LED on
   while(fres!=FR_OK)
   {
-	  if(file_name_index>7)
-	  {
-		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, SET);
-	  }
-	  file_name_index++;
-	  if(file_name_index<10)
-	  {
-		  snprintf(file_name_gps, NAME_SIZE, "gps%d.txt", file_name_index);
-		  snprintf(file_name_imu, NAME_SIZE, "imu%d.txt", file_name_index);
-		  fres=f_mount(&fs, "", 0);
-		  if(fres!=FR_OK) continue;
-		  fres=f_open(&gps_file, file_name_gps, FA_CREATE_NEW | FA_WRITE);
-		  if(fres!=FR_OK) continue;
-		  fres=f_open(&imu_file, file_name_imu, FA_CREATE_NEW);
-		  if(fres!=FR_OK) continue;
-		  f_close(&imu_file);
-	  }
+	  fres=find_file_name();
   }
   char* json_str=JSON_Header();
   f_open(&imu_file, file_name_imu, FA_OPEN_APPEND | FA_WRITE);
@@ -228,8 +236,11 @@ int main(void)
   {
 	  if(gps.rx_cplt && fres==FR_OK)
 	  {
+		  //fres=f_open(&gps_file, file_name_gps, FA_OPEN_APPEND | FA_WRITE);
 		  f_putc(gps.gps_data, &gps_file);
+		  //f_close(&gps_file);
 		  gps.rx_cplt=0u;
+		  g++;
 		  GPS_Receive(&huart2, &gps.gps_data,1);
 	  }
 	  if(time_elapsed && fres==FR_OK)
@@ -239,6 +250,7 @@ int main(void)
 		  f_puts(json_str, &imu_file);
 		  f_close(&imu_file);
 		  cJSON_free(json_str);
+		  i++;
 		  MPU6050_GetRawData(&hi2c1, &mpu);
 		  HMC5883L_ReadData(&hi2c3, &hmc);
 		  time_elapsed=0;

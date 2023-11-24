@@ -14,6 +14,7 @@ const uint8_t cfg_msg[CFG_MSG_NUMBER][CFG_MSG_SIZE]={
 		{CFG_HEADER_1,CFG_HEADER_2,CFG_MSG_ID_1,CFG_MSG_ID_2,CFG_MSG_LENGTH,EMPTY_BYTE,CFG_MSG_CLASS,CFG_MSG_GGA_ID,EMPTY_BYTE,GGA_CHECKSUM_A,GGA_CHECKSUM_B}
 };
 uint8_t cfg_msg_index=0u;
+uint8_t tx_cplt=0u;
 GPS_t gps;
 uint8_t cfg_ready=0u;
 
@@ -22,11 +23,11 @@ uint8_t cfg_ready=0u;
  * set message rate; disable unnecessary nmea sentences
  * highbyte, lowbyte: milliseconds are 16 bit, but ubx message contains 8 bit values-->mask
  */
-HAL_StatusTypeDef GPS_Init(UART_HandleTypeDef *huart, uint16_t msg_rate, uint8_t disable_unused)
+HAL_StatusTypeDef GPS_Init(UART_HandleTypeDef *huart, uint16_t msg_rate, uint8_t recom_min_info)
 {
 	gps.rx_cplt=0u;
 	gps.gps_data=0u;
-	gps.disable_unused=disable_unused;
+	gps.recommended_min_info=recom_min_info;
 	gps.measurement_rate=msg_rate;
 	uint8_t highbyte;
 	uint8_t lowbyte;
@@ -36,7 +37,23 @@ HAL_StatusTypeDef GPS_Init(UART_HandleTypeDef *huart, uint16_t msg_rate, uint8_t
 	cfg_rate[6]=lowbyte;
 	Calc_checksum(cfg_rate, sizeof(cfg_rate));
 	GPS_Transmit(huart, cfg_rate, sizeof(cfg_rate));
-	while(!cfg_ready);
+	if(gps.recommended_min_info)
+	{
+		while(!cfg_ready)
+		{
+			if(tx_cplt)
+			{
+				if(cfg_msg_index<4)
+				{
+					GPS_Transmit(huart, cfg_msg[cfg_msg_index], sizeof(cfg_msg[cfg_msg_index]));
+					cfg_msg_index++;
+				}else{
+					cfg_ready=1;
+				}
+				tx_cplt=0;
+			}
+		}
+	}
 	return HAL_OK;
 }
 
@@ -79,13 +96,7 @@ void Calc_checksum(uint8_t *message, uint8_t arraysize)
  */
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
-	if(cfg_msg_index<4 && gps.disable_unused)
-	{
-		cfg_msg_index++;
-		GPS_Transmit(huart, cfg_msg[cfg_msg_index-1], sizeof(cfg_msg[cfg_msg_index-1]));
-	}else{
-		cfg_ready=1;
-	}
+	tx_cplt=1;
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)

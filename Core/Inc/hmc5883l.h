@@ -10,7 +10,6 @@
 
 #include "stm32l4xx_hal.h"
 
-#define HMC_DEV_ADDRESS 0x1E
 #define HMC_READ 0x3C
 #define HMC_WRITE 0x3D
 #define HMC_CONFIG_A 0x00
