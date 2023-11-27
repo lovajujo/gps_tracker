@@ -97,7 +97,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
  */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-
 	time_counter++;
 	if(time_counter==imu_sampling_rate)
 	{
@@ -153,10 +152,8 @@ FRESULT Find_file_name()
 	   f_mount(&fs, "", 0);
 	   fres=f_open(&gps_file, file_name_gps, FA_CREATE_NEW | FA_WRITE);
 	   if(fres!=FR_OK) return fres;
-	   //f_close(&gps_file);
 	   fres=f_open(&imu_file, file_name_imu, FA_CREATE_NEW | FA_WRITE);
 	   if(fres!=FR_OK) return fres;
-	   //f_close(&imu_file);
    }
   return fres;
 }
@@ -214,10 +211,8 @@ int main(void)
 	  fres=Find_file_name();
   }
   char* json_str=JSON_Header();
-  //f_open(&imu_file, file_name_imu, FA_OPEN_APPEND | FA_WRITE);
   f_puts(json_str, &imu_file);
   cJSON_free(json_str);
-  //f_close(&imu_file);
 
   MPU6050_GetRawData(&hi2c1, &mpu);
   HMC5883L_ReadData(&hi2c3, &hmc);
@@ -231,18 +226,14 @@ int main(void)
   {
 	  if(gps.rx_cplt)
 	  {
-		  //fres=f_open(&gps_file, file_name_gps, FA_OPEN_APPEND | FA_WRITE);
 		  f_putc(gps.gps_data, &gps_file);
-		  //f_close(&gps_file);
 		  gps.rx_cplt=0u;
 		  GPS_Receive(&huart2, &gps.gps_data,1);
 	  }
 	  if(time_elapsed)
 	  {
 		  char *json_str=Convert_to_JSON();
-		  //f_open(&imu_file, file_name_imu, FA_OPEN_APPEND | FA_WRITE);
 		  f_puts(json_str, &imu_file);
-		  //f_close(&imu_file);
 		  cJSON_free(json_str);
 		  MPU6050_GetRawData(&hi2c1, &mpu);
 		  HMC5883L_ReadData(&hi2c3, &hmc);
@@ -257,7 +248,6 @@ int main(void)
 		  session_end=0;
 	  }
     /* USER CODE END WHILE */
-
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
