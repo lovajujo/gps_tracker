@@ -47,7 +47,8 @@
 
 typedef struct{
 	uint16_t measurement_rate;
-	uint8_t gps_data, rx_cplt, recommended_min_info;
+	volatile uint8_t gps_data, rx_cplt;
+	uint8_t recommended_min_info;
 } GPS_t;
 
 extern GPS_t gps;

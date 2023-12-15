@@ -48,7 +48,7 @@ void MPU6050_GetRawData(I2C_HandleTypeDef *I2Cx, MPU6050_t *mpu)
  */
 void MPU6050_GetSensorData(I2C_HandleTypeDef *I2Cx, MPU6050_t *mpu)
 {
-	MPU6500_GetRawData(I2Cx, mpu);
+	MPU6050_GetRawData(I2Cx, mpu);
 	mpu->sensorData.ax=mpu->rawData.ax/mpu->config.aMaxRange;
 	mpu->sensorData.ay=mpu->rawData.ay/mpu->config.aMaxRange;
 	mpu->sensorData.az=mpu->rawData.az/mpu->config.aMaxRange;

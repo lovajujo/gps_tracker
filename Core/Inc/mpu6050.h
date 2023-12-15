@@ -44,12 +44,12 @@ typedef struct
 {
 	struct
 	{
-		int16_t ax, ay, az, gx, gy, gz;
+		volatile int16_t ax, ay, az, gx, gy, gz;
 	} rawData;
 
 	struct
 	{
-		float ax, ay, az, gx, gy, gz;
+		volatile float ax, ay, az, gx, gy, gz;
 	} sensorData;
 
 	struct

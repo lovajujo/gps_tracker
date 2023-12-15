@@ -41,7 +41,7 @@
 
 typedef struct
 {
-	uint16_t x_data, y_data, z_data;
+	volatile uint16_t x_data, y_data, z_data;
 	uint8_t sample_rate, gain, mode;
 }HMC5883L_t;
 

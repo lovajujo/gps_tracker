@@ -65,9 +65,9 @@ HMC5883L_t hmc;
 uint8_t file_name_gps[NAME_SIZE];
 uint8_t file_name_imu[NAME_SIZE];
 uint8_t file_name_index=0u;
-uint8_t session_end=0u;
-uint8_t time_elapsed=0u;
-uint8_t time_counter=0u;
+volatile uint8_t session_end=0u;
+volatile uint8_t time_elapsed=0u;
+volatile uint8_t time_counter=0u;
 uint8_t imu_sampling_rate;
 /* USER CODE END PV */
 
@@ -248,6 +248,7 @@ int main(void)
 		  session_end=0;
 	  }
     /* USER CODE END WHILE */
+
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -452,7 +453,7 @@ static void MX_TIM6_Init(void)
   htim6.Instance = TIM6;
   htim6.Init.Prescaler = 799;
   htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim6.Init.Period = 1000;
+  htim6.Init.Period = 999;
   htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
   {
